@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Mapper</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        h1 {
+            color: #e94560;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .stats {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 4px;
+        }
+        
+        .stat-label {
+            color: #aaa;
+        }
+        
+        .stat-value {
+            color: #e94560;
+            font-weight: bold;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #e94560;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #d63651;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .secondary-btn {
+            background: #0f3460;
+        }
+        
+        .secondary-btn:hover {
+            background: #1a4d7a;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f3460;
+            border-radius: 8px;
+        }
+        
+        .legend h3 {
+            margin-bottom: 12px;
+            color: #e94560;
+            font-size: 16px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #e94560;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #e94560;
+            font-size: 16px;
+        }
+        
+        .instructions p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        
+        .marker-icon {
+            background: #e94560;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>🚨 Crime Mapper</h1>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total Reports:</span>
+                    <span class="stat-value" id="totalCrimes">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Danger Zones:</span>
+                    <span class="stat-value" id="dangerZones">0</span>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>📍 How to Use</h3>
+                <p>Click anywhere on the map to report a crime. Areas with multiple reports will be highlighted as unsafe zones with heat intensity.</p>
+            </div>
+            
+            <div class="controls">
+                <button onclick="toggleHeatmap()">Toggle Heatmap</button>
+                <button onclick="refreshData()" class="secondary-btn">Refresh Data</button>
+                <button onclick="exportMap()" class="secondary-btn">📷 Export Map</button>
+                <button onclick="clearAllCrimes()" class="secondary-btn">Clear All Data</button>
+            </div>
+            
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00ff00;"></div>
+                    <span>Safe Area</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffff00;"></div>
+                    <span>Medium Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff0000;"></div>
+                    <span>High Risk</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
